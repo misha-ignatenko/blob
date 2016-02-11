@@ -10,39 +10,30 @@ if (Meteor.isClient) {
 }
 
 App = React.createClass({
-    getTasks() {
-        return [
-            { _id: 1, text: "This is task 1" },
-            { _id: 2, text: "This is task 2" },
-            { _id: 3, text: "This is task 3" }
-        ];
-    },
 
     getInitialState() {
         return {
             textAreaValue: "",
             splitIntoCells: false,
-            cellValues: []
+            cellValues: [],
+            randomCount: null,
+            countAfter: null,
+            right: null,
+            left: null,
+            top: null,
+            bottom: null
         };
-    },
-
-    renderTasks() {
-        return this.getTasks().map((task) => {
-            return <Task key={task._id} task={task} />;
-        });
     },
 
     handleChange(event) {
         var _textAreaNewValue = event.target.value;
         var _allLines = _textAreaNewValue.split("\n");
-        console.log("all lines: ", _allLines);
         var _cleanLines = [];
         _allLines.forEach(function(line) {
             if (line.length === _dimension) {
                 _cleanLines.push(line.split(""));
             }
         })
-        console.log(_cleanLines);
         if (_cleanLines.length === 10) {
             this.setState({
                 splitIntoCells: true,
@@ -58,44 +49,36 @@ App = React.createClass({
     },
 
     calculate() {
-        console.log("calculate blob stats here");
-        var _totalBooleanAccesses = 1;
+        var _totalBooleanAccesses = 0;
         var _cellsNotAccessed = _.range(0,_dimension*_dimension);
-        console.log("cells not accessed indices: ", _cellsNotAccessed);
 
 
         var _that = this;
-        _cellsNotAccessed.forEach(function(cellIndex) {
-            console.log(_that.getRowAndColumnIndices(cellIndex));
-        });
 
         var _randomIndex = _.random(0, _dimension*_dimension - 1);
         //find the first one
         var _randomCoord = this.getRowAndColumnIndices(_randomIndex);
-        console.log("this.state.cellValues: ", this.state.cellValues);
 
         var _alreadyCheckedAndTheyAreZero = [];
 
+        var _totalBoolCountForRandom = 1;
         while (!this.isCellAtIndexOne(_randomIndex)) {
-            _totalBooleanAccesses++;
+            _totalBoolCountForRandom++;
             _alreadyCheckedAndTheyAreZero.push(_randomIndex);
             _randomIndex = _.random(0, _dimension*_dimension - 1);
             //find the first one
             _randomCoord = this.getRowAndColumnIndices(_randomIndex);
         }
         var _initOneCoord = _randomCoord;
-        console.log("total number of boolean accesses to pick the first nonzero cell: ",  _totalBooleanAccesses);
+        console.log("total number of boolean accesses to pick the first nonzero cell: ",  _totalBoolCountForRandom);
         console.log("initial one coord: ", _randomCoord);
 
 
+        this.setState({
+            randomCount: _totalBoolCountForRandom
+        })
 
         var _connectedIndicesArr = [_randomIndex];
-
-        var _totalTryFunctionCalls = 0;
-
-
-
-
 
         var _indicesAlreadyAccessed = [_randomIndex];
         var _connectedBlobIndicesArr = [_randomIndex];
@@ -107,13 +90,7 @@ App = React.createClass({
         var _attemptTwoNumberOfRuns = 0;
 
         function _attemptTwo(startIndex) {
-            console.log("--------------------------------------------------");
             _attemptTwoNumberOfRuns++;
-
-
-            console.log("inside attempt two");
-            console.log("index: ", startIndex);
-            console.log("indices already checked: ", _indicesAlreadyAccessed);
 
             //can check up, below, right, and left if they werent' already checked
             var _indexUp = startIndex - _dimension >= 0 ? startIndex - _dimension : null;
@@ -145,8 +122,6 @@ App = React.createClass({
             _neighborsToCheck.forEach(function(neighborIndex) {
                 _totalBooleanAccesses++;
                 _indicesAlreadyAccessed.push(neighborIndex);
-
-
                 if (_that.isCellAtIndexOne(neighborIndex)) {
                     _connectedBlobIndicesArr.push(neighborIndex);
 
@@ -171,127 +146,64 @@ App = React.createClass({
         }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        function _try(startIndex) {
-            console.log("try functionc called with index: ", startIndex);
-            console.log("coord: ", _that.getRowAndColumnIndices(startIndex));
-
-            _totalTryFunctionCalls++;
-            if (_totalTryFunctionCalls <= 1000 ) {
-                //go up, check if not already connected, then connect and call the recusrive function for the cell up
-                var _indexUp = startIndex - _dimension;
-                var _indexDown = startIndex + _dimension;
-                var _indexRight = startIndex + 1;
-                var _indexLeft = startIndex - 1;
-
-
-                if (_indexUp >= 0) {
-                    //this means can go up
-                    //check to make sure the cell above is NOT among those already checked and zeros
-                    if (_.indexOf(_alreadyCheckedAndTheyAreZero, _indexUp) === -1) {
-                        _totalBooleanAccesses++;
-                        if (_that.isCellAtIndexOne(_indexUp)) {
-                            //need to connect these indices
-                            _connectedIndicesArr.push(_indexUp);
-                            _try(_indexUp);
-                        } else {
-                            _alreadyCheckedAndTheyAreZero.push(_indexUp);
-                            _try(_indexDown);
-                            _try(_indexLeft);
-                            _try(_indexRight);
-                        }
-                    }
-                } else if (_indexDown <= _dimension*_dimension-1) {
-                    if (_.indexOf(_alreadyCheckedAndTheyAreZero, _indexDown) === -1) {
-                        _totalBooleanAccesses++;
-                        if (_that.isCellAtIndexOne(_indexDown)) {
-                            //need to connect these indices
-                            _connectedIndicesArr.push(_indexDown);
-                            _try(_indexDown);
-                        } else {
-                            _alreadyCheckedAndTheyAreZero.push(_indexDown);
-                            _try(_indexUp);
-                            _try(_indexLeft);
-                            _try(_indexRight);
-                        }
-                    }
-                } else if ((_indexRight - (_indexRight % _dimension))/_dimension == (startIndex - (startIndex % _dimension))/_dimension) {
-                    //the above makes sure we didn't jump to next line
-                    if (_.indexOf(_alreadyCheckedAndTheyAreZero, _indexRight) === -1) {
-                        _totalBooleanAccesses++;
-                        if (_that.isCellAtIndexOne(_indexRight)) {
-                            //need to connect these indices
-                            _connectedIndicesArr.push(_indexRight);
-                            _try(_indexRight);
-                        } else {
-                            _alreadyCheckedAndTheyAreZero.push(_indexRight);
-                            _try(_indexDown);
-                            _try(_indexLeft);
-                            _try(_indexUp);
-                        }
-                    }
-                } else if ((_indexLeft - (_indexLeft % _dimension))/_dimension == (startIndex - (startIndex % _dimension))/_dimension) {
-                    //the above makes sure we didn't jump to next line
-                    if (_.indexOf(_alreadyCheckedAndTheyAreZero, _indexLeft) === -1) {
-                        _totalBooleanAccesses++;
-                        if (_that.isCellAtIndexOne(_indexLeft)) {
-                            //need to connect these indices
-                            _connectedIndicesArr.push(_indexLeft);
-                            _try(_indexLeft);
-                        } else {
-                            _alreadyCheckedAndTheyAreZero.push(_indexLeft);
-                            _try(_indexDown);
-                            _try(_indexUp);
-                            _try(_indexRight);
-                        }
-                    }
-                }
-
-                //go down
-
-                //go left
-
-                //go right
-            } else {
-                console.log("STAHP");
-            }
-
-
-        }
-
-
-        //_try(_randomIndex);
         _attemptTwo(_randomIndex);
         console.log("ANSWER: ", _connectedBlobIndicesArr);
         console.log("total bool accesses: ", _totalBooleanAccesses);
+
+        this.setState({
+            countAfter: _totalBooleanAccesses
+        });
+
         console.log("indices checked: ", _indicesAlreadyAccessed.length);
         console.log("indices chedked uniq: ", _.uniq(_indicesAlreadyAccessed).length);
         _.uniq(_indicesAlreadyAccessed).forEach(function(index) {
             var _coord = _that.getRowAndColumnIndices(index);
             var _id = _coord[0] + "_" + _coord[1];
             var _selector = $("#" + _id);
-            _selector.removeClass("btn-default").addClass("btn-info");
-            console.log("element: ", _selector.html());
-        })
-        console.log("--------------------");
+            if (_selector.html() == 1) {
+                //_selector.removeClass("btn-default").addClass("btn-info");
+            } else {
+                _selector.removeClass("btn-default").addClass("btn-success");
+            }
+        });
+
+
+
+
+        _.uniq(_connectedBlobIndicesArr).forEach(function(index) {
+            var _coord = _that.getRowAndColumnIndices(index);
+            var _id = _coord[0] + "_" + _coord[1];
+            var _selector = $("#" + _id);
+            //if (_selector.html() == 1) {
+            //    _selector.removeClass("btn-default").addClass("btn-info");
+            //} else {
+                _selector.removeClass("btn-default").addClass("btn-info");
+            //}
+        });
+
+
+        var _right = 0;
+        var _left = _dimension - 1;
+
+        _connectedBlobIndicesArr.forEach(function(index) {
+            var _c = _that.getRowAndColumnIndices(index)[1];
+            if (_c > _right) {
+                _right = _c;
+            }
+            if (_c < _left) {
+                _left = _c;
+            }
+        });
+
+
+        var _top = (_.min(_connectedBlobIndicesArr) - (_.min(_connectedBlobIndicesArr) % _dimension)) / _dimension;
+        var _bottom = (_.max(_connectedBlobIndicesArr) - (_.max(_connectedBlobIndicesArr) % _dimension)) / _dimension;
+        this.setState({
+            top: _top,
+            bottom: _bottom,
+            left: _left,
+            right: _right
+        });
 
 
 
@@ -353,8 +265,16 @@ App = React.createClass({
                         {this.renderCells()}
                         <br/>
                         <button className="btn btn-default" onClick={this.calculate}>calculate blob</button>
-                        <br/>
                         <button className="btn btn-default" onClick={this.clearCells}>clear</button>
+
+                        <br/>
+                        <h3>results:</h3>
+                        <h5>total boolean access count to randomly pick an initial cell with value one: {this.state.randomCount}</h5>
+                        <h5>cell reads after initialization cell with value one was picked randomly: {this.state.countAfter}</h5>
+                        <h5>top: {this.state.top}</h5>
+                        <h5>left: {this.state.left}</h5>
+                        <h5>bottom: {this.state.bottom}</h5>
+                        <h5>right: {this.state.right}</h5>
                     </div>
                 }
 
